@@ -1,0 +1,197 @@
+clear; close all; clc
+%% dane dla interacji 
+dt=1;                   % [s] krok
+Qc(1:100,1)=90000; % Ca³kowita iloœæ wymienianego ciep³a [kW]
+m=1;
+NoS=length(Qc);          % liczba próbek 
+t=(0:dt:length(Qc));     % wektor czasu
+%% alokacja macierzy
+%PARA
+Tfg=zeros(NoS,m); % temperatura pary
+hfg=zeros(NoS,m); % wsp przenoszenia ciep³a dla konwekcji pary
+hl=zeros(NoS,m); % ciep³o utajone pary wodnej
+Cpfg=zeros(NoS,m); % ciep³o w³aœciwe pary  //TABELA
+Rfg=zeros(NoS,m); % opornoœæ cieplna pary
+mfg=zeros(NoS,m); % przep³yw masowy pary wodnej
+Nufg=zeros(NoS,m); % liczba nusselta dla pary
+Prfg=zeros(NoS,m); % liczba prandtla dla pary
+C=zeros(NoS,m); % zmienna zale¿na od liczby reynoldsa
+mm=zeros(NoS,m); % zmienna zale¿na od liczby reynoldsa
+Refgmax=zeros(NoS,m); % liczba Reynoldsa dla pary
+yh2o=zeros(NoS,m); % u³amek molowy pary wodnej w powietrzu wewn¹trz wymiennika
+yi=zeros(NoS,m); % u³amek molowy pary wodnej w interfejsie œcianki
+Ptot=zeros(NoS,m); % ca³kowite ciœnienie pary
+Pfg=zeros(NoS,m); % ciœnienie po stronie pary
+dPfg=zeros(NoS,m); % spadek ciœnienia po stronie pary
+rofg=zeros(NoS,m); % gêstoœæ pary //TABELA
+mifg=zeros(NoS,m); % lepkoœæ dynamiczna pary  
+mifg0c=zeros(NoS,m); % lepkoœæ dynamiczna pary dla 0C
+lambdafg=zeros(NoS,m); % przewodnoœæ cieplna pary 
+lambdafg0c=zeros(NoS,m); % przewodnoœæ cieplna pary dla 0C
+ffg=zeros(NoS,m); % wsp tarcia pary
+%INTERFEJS
+Ti=zeros(NoS,m); % temperatura na granicy faz para-kondensat przyœcienny
+%WODA CH£ODZ¥CA
+Tcw=zeros(NoS,m); % temperatura wody ch³odz¹cej
+Cpcw=zeros(NoS,m); % ciep³o w³aœciwe wody ch³odz¹cej //TABELA
+mcw=zeros(NoS,m); % przep³yw masowy wody ch³odz¹cej
+hcw=zeros(NoS,m); % wsp przenoszenia ciep³a dla konwekcji wody ch³odz¹cej
+Rcw=zeros(NoS,m); % opornoœæ cieplna wody ch³odz¹cej
+Nucw=zeros(NoS,m); % liczba nusselta dla wody ch³odz¹cej
+Prcw=zeros(NoS,m); % liczba pradntla dla wody ch³odz¹cej
+Pcw=zeros(NoS,m); % ciœnienie po stronie wody
+dPcw=zeros(NoS,m); % spadek ciœnienia po stronie wody
+rocw=zeros(NoS,m); % gêstoœæ wody ch³odz¹cej //TABELA
+lambdacw=zeros(NoS,m); % przewodnoœæ cieplna wody ch³odz¹cej //TABELA
+fcw=zeros(NoS,m); % wsp tarcia wody
+micw=zeros(NoS,m); % lepkoœæ dynamiczna wody
+%MECHANICZNE
+Tow=zeros(NoS,m); % temperatura œcianki
+Ao=zeros(NoS,m); % zew. powierzchnia rurki
+Ai=zeros(NoS,m); % wew. powierzchnia rurki
+ro=zeros(NoS,m); % zew. promieñ rurki
+ri=zeros(NoS,m); % wew. promieñ rurki
+kw=zeros(NoS,m); % przewodnoœæ cieplna materia³u rurki (stal)
+km=zeros(NoS,m); % wsp. transportu masy
+Rtotal=zeros(NoS,m); % ca³kowita opornoœæ cieplna
+L=zeros(NoS,m); % d³ugoœæ rurki
+Aoc=zeros(NoS,m); % zew. powierzchnia rurki w 1 komórce iteracji
+Aic=zeros(NoS,m); % wew. powierzchnia rurki w 1 komórce iteracji
+do=zeros(NoS,m);  % œrednica zew.
+di=zeros(NoS,m);  % œrednica wew.
+Nl=zeros(NoS,m); % iloœæ rowków
+X=zeros(NoS,m); % wsp. korekcji
+Vmax=zeros(NoS,m); % prêdkoœæ maksymalna miêdzy u-rurkami
+
+%% warunki pocz¹tkowe
+zaworfg=0.09; %input('Podaj procent otwarcia zaworu przelotni: ')
+Tfg(1)=260; %input('Podaj temperature pocz¹tkow¹ pary wodnej: ');
+Tcw(1)=70; %input('Podaj temperature pocz¹tkow¹ wody ch³odz¹cej: ');
+Pfg(1)=4.3e5; %input('Podaj ciœnienie pary wodnej: ');
+Pcw(1)=17e5; %input('Podaj ciœnienie wody ch³odz¹cej: ');
+%% dane konstrukcyjne
+Ao(1:NoS)=4.5*pi*ro*9.07 ; % zew. powierzchnia rurki
+Ai(1:NoS)= 4.5*pi*ri*9.07; % wew. powierzchnia rurki
+ro(1:NoS)=8.6e-3 ; % zew. promieñ rurki
+ri(1:NoS)=6.8e-3 ; % wew. promieñ rurki
+kw(1:NoS)=51 ; % [W/m*deg] przewodnoœæ cieplna materia³u rurki (stal)
+L(1:NoS)= 9.07; % d³ugoœæ rurki
+Aoc(1:NoS)=0.1*Ao ; % zew. powierzchnia rurki w 1 komórce iteracji//UMOWNE
+Aic(1:NoS)=0.1*Ai ; % wew. powierzchnia rurki w 1 komórce iteracji
+do(1:NoS)=17.2e-3;  % œrednica zew.
+di(1:NoS)=13.6e-3;  % œrednica wew.
+Nl(1:NoS)=1622; % iloœæ rowków
+X(1:NoS)=0.5 ; % wsp. korekcji
+mcw(1:NoS)=292; % [kg/s]
+mfg(1:NoS)=zaworfg*146; %[kg/s]
+ffg(1:NoS)=0.03;
+fcw(1:NoS)=0.03;
+yh2o(1:NoS)=0.01; % u³amek molowy pary wodnej w powietrzu wewn¹trz wymiennika
+yi(1:NoS)=0.5; % u³amek molowy pary wodnej w interfejsie œcianki
+%% iteracja g³ówna
+for n=1:NoS for Tfgref=1:NoS for Tcwref=1:NoS m=1:NoS
+    %PARA tabela
+Cpfg(Tfgref<=100)=2.135;rofg(Tfgref<=100)=0.598;lambdafg(Tfgref<=100)=0.023 ;
+Cpfg(Tfgref>100)=2.177; rofg(Tfgref>100)=0.826; lambdafg(Tfgref>100)=0.024;
+Cpfg(Tfgref>110)=2.206; rofg(Tfgref>110)=1.121; lambdafg(Tfgref>110)=0.025 ;
+Cpfg(Tfgref>120)=2.257; rofg(Tfgref>120)=1.496; lambdafg(Tfgref>120)=0.026 ;
+Cpfg(Tfgref>130)=2.315; rofg(Tfgref>130)=1.966; lambdafg(Tfgref>130)=0.028 ;
+Cpfg(Tfgref>140)=2.395; rofg(Tfgref>140)=2.547; lambdafg(Tfgref>140)=0.029 ;
+Cpfg(Tfgref>150)=2.479; rofg(Tfgref>150)=3.258; lambdafg(Tfgref>150)=0.030 ;
+Cpfg(Tfgref>160)=2.583; rofg(Tfgref>160)=4.122; lambdafg(Tfgref>160)=0.031 ;
+Cpfg(Tfgref>170)=2.709; rofg(Tfgref>170)=5.157; lambdafg(Tfgref>170)=0.032 ;
+Cpfg(Tfgref>180)=2.856; rofg(Tfgref>180)=6.394; lambdafg(Tfgref>180)=0.034 ;
+Cpfg(Tfgref>190)=3.023; rofg(Tfgref>190)=7.862; lambdafg(Tfgref>190)=0.035 ; 
+Cpfg(Tfgref>200)=3.199; rofg(Tfgref>200)=9.588; lambdafg(Tfgref>200)=0.037 ;
+Cpfg(Tfgref>210)=3.408; rofg(Tfgref>210)=11.62; lambdafg(Tfgref>210)=0.039 ;
+Cpfg(Tfgref>220)=3.634; rofg(Tfgref>220)=13.99; lambdafg(Tfgref>220)=0.041 ;
+Cpfg(Tfgref>230)=3.881; rofg(Tfgref>230)=16.76; lambdafg(Tfgref>230)=0.043 ;
+Cpfg(Tfgref>240)=4.158; rofg(Tfgref>240)=19.98; lambdafg(Tfgref>240)=0.045 ;
+Cpfg(Tfgref>250)=4.468; rofg(Tfgref>250)=23.72; lambdafg(Tfgref>250)=0.048 ;
+Cpfg(Tfgref>260)=4.815; rofg(Tfgref>260)=28.09; lambdafg(Tfgref>260)=0.051 ;
+Cpfg(Tfgref>270)=5.234; rofg(Tfgref>270)=33.19; lambdafg(Tfgref>270)=0.055 ;
+Cpfg(Tfgref>280)=5.694; rofg(Tfgref>280)=39.15; lambdafg(Tfgref>280)=0.058 ;
+Cpfg(Tfgref>290)=6.280; rofg(Tfgref>290)=46.21; lambdafg(Tfgref>290)=0.062 ;
+Cpfg(Tfgref>300)=7.118; rofg(Tfgref>300)=54.58; lambdafg(Tfgref>300)=0.068 ; 
+Cpfg(Tfgref>310)=8.206; rofg(Tfgref>310)=64.72; lambdafg(Tfgref>310)=0.075 ;
+Cpfg(Tfgref>320)=9.881; rofg(Tfgref>320)=77.10; lambdafg(Tfgref>320)=0.082 ;
+Cpfg(Tfgref>330)=12.35; rofg(Tfgref>330)=92.76; lambdafg(Tfgref>330)=0.093 ;
+Cpfg(Tfgref>340)=16.24; rofg(Tfgref>340)=113.6; lambdafg(Tfgref>340)=0.107 ;
+tabbfg=min(abs(Tfg(1)-Tfgref)); 
+tabafg=find(abs(Tfg(1)-Tfgref)==tabbfg);
+Tfgref(tabafg);
+tabdfg=min(abs(Tfg(n)-Tfgref));
+tabcfg=find(abs(Tfg(n)-Tfgref)==tabdfg);
+Cpfg(1)=Cpfg(Tfgref(tabafg));
+Cpfg(n+1)=Cpfg(Tfgref(tabcfg));
+rofg(1)=rofg(Tfgref(tabafg));
+rofg(n+1)=rofg(Tfgref(tabcfg));
+lambdafg(1)=lambdafg(Tfgref(tabafg));
+lambdafg(n+1)=lambdafg(Tfgref(tabcfg));
+    %WODA tabela
+Cpcw(Tcwref<=10)=4.191; rocw(Tcwref<=10)=999.7; lambdacw(Tcwref<=10)=0.574 ; micw(Tcwref<=10)= 1.78e-6;
+Cpcw(Tcwref>10)=4.183;  rocw(Tcwref>10)=998.2;  lambdacw(Tcwref>10)=0.599 ;  micw(Tcwref>10)=  1.306e-6;
+Cpcw(Tcwref>20)=4.174;  rocw(Tcwref>20)=995.7;  lambdacw(Tcwref>20)=0.618 ;  micw(Tcwref>20)=  1.006e-6;
+Cpcw(Tcwref>30)=4.174;  rocw(Tcwref>30)=992.2;  lambdacw(Tcwref>30)=0.635 ;  micw(Tcwref>30)=  0.805e-6;
+Cpcw(Tcwref>40)=4.174;  rocw(Tcwref>40)=988.1;  lambdacw(Tcwref>40)=0.648 ;  micw(Tcwref>40)=  0.659e-6;
+Cpcw(Tcwref>50)=4.179;  rocw(Tcwref>50)=983.2;  lambdacw(Tcwref>50)=0.659 ;  micw(Tcwref>50)=  0.556e-6;
+Cpcw(Tcwref>60)=4.187;  rocw(Tcwref>60)=977.8;  lambdacw(Tcwref>60)=0.668 ;  micw(Tcwref>60)=  0.478e-6;
+Cpcw(Tcwref>70)=4.195;  rocw(Tcwref>70)=971.8;  lambdacw(Tcwref>70)=0.674 ;  micw(Tcwref>70)=  0.415e-6;
+Cpcw(Tcwref>80)=4.208;  rocw(Tcwref>80)=965.3;  lambdacw(Tcwref>80)=0.680 ;  micw(Tcwref>80)=  0.365e-6;
+Cpcw(Tcwref>90)=4.220;  rocw(Tcwref>90)=958.4;  lambdacw(Tcwref>90)=0.683 ;  micw(Tcwref>90)=  0.326e-6;
+Cpcw(Tcwref>100)=4.233; rocw(Tcwref>100)=951.0; lambdacw(Tcwref>100)=0.685 ; micw(Tcwref>100)= 0.295e-6;
+Cpcw(Tcwref>110)=4.250; rocw(Tcwref>110)=943.1; lambdacw(Tcwref>110)=0.686 ; micw(Tcwref>110)= 0.272e-6;
+Cpcw(Tcwref>120)=4.266; rocw(Tcwref>120)=934.8; lambdacw(Tcwref>120)=0.686 ; micw(Tcwref>120)= 0.252e-6;
+Cpcw(Tcwref>130)=4.287; rocw(Tcwref>130)=926.1; lambdacw(Tcwref>130)=0.685 ; micw(Tcwref>130)= 0.233e-6;
+Cpcw(Tcwref>140)=4.313; rocw(Tcwref>140)=917.0; lambdacw(Tcwref>140)=0.684 ; micw(Tcwref>140)= 0.217e-6;
+Cpcw(Tcwref>150)=4.346; rocw(Tcwref>150)=907.4; lambdacw(Tcwref>150)=0.683 ; micw(Tcwref>150)= 0.203e-6;
+Cpcw(Tcwref>160)=4.380; rocw(Tcwref>160)=897.3; lambdacw(Tcwref>160)=0.674 ; micw(Tcwref>160)= 0.191e-6;
+Cpcw(Tcwref>170)=4.417; rocw(Tcwref>170)=886.9; lambdacw(Tcwref>170)=0.670 ; micw(Tcwref>170)= 0.181e-6;
+Cpcw(Tcwref>180)=4.459; rocw(Tcwref>180)=876.0; lambdacw(Tcwref>180)=0.663 ; micw(Tcwref>180)= 0.173e-6;
+Cpcw(Tcwref>190)=4.505; rocw(Tcwref>190)=863.0; lambdacw(Tcwref>190)=0.655 ; micw(Tcwref>190)= 0.165e-6;
+Cpcw(Tcwref>200)=4.555; rocw(Tcwref>200)=852.8; lambdacw(Tcwref>200)=0.645 ; micw(Tcwref>200)= 0.158e-6;
+Cpcw(Tcwref>210)=4.614; rocw(Tcwref>210)=840.3; lambdacw(Tcwref>210)=0.637 ; micw(Tcwref>210)= 0.153e-6;
+Cpcw(Tcwref>220)=4.681; rocw(Tcwref>220)=827.3; lambdacw(Tcwref>220)=0.628 ; micw(Tcwref>220)= 0.148e-6;
+Cpcw(Tcwref>230)=4.756; rocw(Tcwref>230)=813.6; lambdacw(Tcwref>230)=0.618 ; micw(Tcwref>230)= 0.145e-6;
+Cpcw(Tcwref>240)=4.844; rocw(Tcwref>240)=799.0; lambdacw(Tcwref>240)=0.605 ; micw(Tcwref>240)= 0.141e-6;
+Cpcw(Tcwref>250)=4.949; rocw(Tcwref>250)=784.0; lambdacw(Tcwref>250)=0.590 ; micw(Tcwref>250)= 0.137e-6;
+tabbcw=min(abs(Tcw(1)-Tcwref)); 
+tabacw=find(abs(Tcw(1)-Tcwref)==tabbcw);
+Tcwref(tabacw);
+tabdcw=min(abs(Tcw(n)-Tcwref));
+tabccw=find(abs(Tcw(n)-Tcwref)==tabdcw);
+Cpcw(1)=Cpcw(Tcwref(tabacw));
+Cpcw(n+1)=Cpcw(Tcwref(tabccw));
+rocw(1)=rocw(Tcwref(tabacw));
+rocw(n+1)=rocw(Tcwref(tabccw));
+lambdacw(1)=lambdacw(Tcwref(tabacw));
+lambdacw(n+1)=lambdacw(Tcwref(tabccw));
+micw(1)=micw(Tcwref(tabacw));
+micw(n+1)=micw(Tcwref(tabccw));
+    %iteracja interfejs
+    Ti(n)=(hfg(n)*Tfg(n)+(1/((ro(n)/ri(n)*hcw(n))+(ro(n)/kw(n))*log(ro(n)/ri(n))))*Tcw(n)+km(n)*hl(n)*(yh2o(n)-yi(n)))/((1/((ro(n)/ri(n)*hcw(n))+((ro(n)/kw(n))*log(ro(n)/ri(n)))))+hfg(n));
+    %iteracja para
+    mifg(n)=1.7921*((273+650)/(Tfg(n)+650))*(Tfg(n)/273)^1.5; % lepkoœæ dynamiczna
+    lambdafg(n)=0.015*((273+650)/(Tfg(n)+650))*(Tfg(n)/273)^1.5; %przewodnoœæ cieplna
+    Refg(n)=(rofg(n)*21*mfg(n)/(2*rofg(n)))/mifg(n); %liczba reynoldsa
+    Prfg(n)=Cpfg(n)*mifg(n)/lambdafg(n); %liczba prandtla
+    Nufg(n)=0.27*(Refg(n)^0.6)*(Prfg(n)^0.36)*((Prfg(n)/0.75)^1/4); % liczba nusselta
+    hfg(n)=(Nufg(n)*lambdafg(n))/do(n); % konwekcja
+    dPfg(n)=Nl(n)*X(n)*((rofg(n)*(Vmax(n)^2)/2))*ffg(n);
+    Pfg(n+1)=Pfg(n)-dPfg(n);
+    Tfg(n+1)=((mfg(n)*Cpfg(n)-0.5*hfg(n)*Aoc(n))*Tfg(n)+hfg(n)*Aoc(n)*Ti(n))/(mfg(n)*Cpfg(n)+0.5*hfg(n)*Aoc(n));
+    %iteracja rurka
+    Tiw(n+1)=Tcw(n+1)+(mcw(n)*Cpcw(n)*(Tcw(n)-Tcw(n+1)))/hcw(n)*Aic(n); %temp wewn¹trz rury
+    Tow(n+1)=Tiw(n+1)+(mcw(n)*Cpcw(n)*(Tcw(n)-Tcw(n+1))*log(ro(n)/ri(n)))/2*pi*kw(n)*L(n); %temp na zewn¹trz rury
+    
+    %iteracja woda
+    Recw(n)=(rocw(n)*di(n)*1.35)/micw(n);
+    fcw(n)=(0.79*log(Recw(n))-1.64)^(-2);
+    Nucw(n)=((fcw(n)/8)*(Recw(n)-1000)*Prcw(n))/((1+12.7*(fcw(n)/8)^1/2)*(((Prcw(n))^2/3)-1));
+    hcw(n)=(Nucw(n)*lambdacw(n))/di(n);
+    dPcw(n)=fcw(n)*(L(n)/di(n))*(rocw(n)*1.35^2)/2;
+    Pcw(n+1)=Pcw(n)-dPcw(n);
+    Tcw(n+1)=Tcw(n)-((hfg(n)*(Tfg(n)-Ti(n))+km(n)*hl(n)*(yh2o(n)-yi(n)))*Aoc(n))/mcw(n)*Cpcw(n);
+        end
+    end
+end
